@@ -12,27 +12,77 @@ public final class DB {
 
     static {
         try {
+            String dbUrl = System.getenv("DB_URL");
+            String dbUser = System.getenv("DB_USER");
+            String dbPassword = System.getenv("DB_PASSWORD");
+
+            // Railway MySQL fallback variables
+            if (dbUrl == null || dbUrl.isBlank()) {
+                dbUrl = System.getenv("MYSQL_URL");
+            }
+
+            if (dbUrl == null || dbUrl.isBlank()) {
+                dbUrl = System.getenv("MYSQL_PUBLIC_URL");
+            }
+
+            if (dbUrl == null || dbUrl.isBlank()) {
+                throw new IllegalStateException(
+                    "Database URL is not configured. Set DB_URL, MYSQL_URL, or MYSQL_PUBLIC_URL."
+                );
+            }
+
+            dbUrl = dbUrl.replace("\"", "")
+                         .replace("'", "")
+                         .trim();
+
+            // Convert mysql:// to jdbc:mysql:// if necessary
+            if (dbUrl.startsWith("mysql://")) {
+                dbUrl = "jdbc:" + dbUrl;
+            }
+
             HikariConfig config = new HikariConfig();
 
-            
-            config.setJdbcUrl(
-                "jdbc:mysql://localhost:3306/virtual_classroom"
-                + "?useSSL=false"
-                + "&allowPublicKeyRetrieval=true"
-                + "&serverTimezone=Asia/Kolkata"
-                + "&characterEncoding=UTF-8"
-                + "&useUnicode=true"
+            config.setJdbcUrl(dbUrl);
+            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+
+            if (dbUser != null && !dbUser.isBlank()) {
+                config.setUsername(dbUser);
+            }
+
+            if (dbPassword != null && !dbPassword.isBlank()) {
+                config.setPassword(dbPassword);
+            }
+
+            /*
+             * Railway / MySQL connection settings
+             */
+            config.addDataSourceProperty(
+                "allowPublicKeyRetrieval",
+                "true"
             );
 
-            config.setUsername("root");
-            config.setPassword("@Surajit123");
+            config.addDataSourceProperty(
+                "useSSL",
+                "false"
+            );
 
-            config.setDriverClassName(
-                "com.mysql.cj.jdbc.Driver"
+            config.addDataSourceProperty(
+                "serverTimezone",
+                "UTC"
+            );
+
+            config.addDataSourceProperty(
+                "characterEncoding",
+                "UTF-8"
+            );
+
+            config.addDataSourceProperty(
+                "useUnicode",
+                "true"
             );
 
             /*
-             * HikariCP settings
+             * HikariCP
              */
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
@@ -74,18 +124,12 @@ public final class DB {
         // Prevent creating DB objects
     }
 
-    /**
-     * Get a connection from HikariCP.
-     */
     public static Connection getConnection()
             throws SQLException {
 
         return dataSource.getConnection();
     }
 
-    /**
-     * Close the HikariCP pool.
-     */
     public static void shutdown() {
 
         if (dataSource != null &&
