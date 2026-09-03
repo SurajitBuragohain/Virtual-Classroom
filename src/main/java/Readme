@@ -1,0 +1,121 @@
+# Virtual Classroom
+
+A web-based Virtual Classroom Management System built using Java Servlets, JSP, MySQL, and Apache Tomcat.
+
+The system provides separate functionality for **Students, Teachers, and Administrators** to manage classrooms, assignments, submissions, grading, and online classes.
+
+---
+
+## Features
+
+### Student
+
+- Student registration and login
+- View enrolled classrooms
+- Join classrooms
+- View classroom details
+- View assignments
+- Submit assignments
+- Resubmit assignments
+- View marks and teacher feedback
+- View online classes
+
+### Teacher
+
+- Teacher registration and login
+- Create classrooms
+- Manage classrooms
+- Add/manage co-teachers
+- View enrolled students
+- Create assignments
+- Manage assignments
+- View student submissions
+- Grade submissions
+- Add feedback
+- Schedule/manage online classes
+
+### Administrator
+
+- Secure administrator login
+- Manage users
+- Manage classrooms
+- Manage enrollments
+- Manage assignments
+- Manage submissions
+- Manage online classes
+- View audit logs
+- View system statistics
+- Manage user roles
+
+---
+
+## Technology Stack
+
+### Frontend
+
+- HTML5
+- CSS3
+- JavaScript
+- JSP
+
+### Backend
+
+- Java 21
+- Jakarta Servlet
+- Jakarta Server Pages (JSP)
+- Jakarta Standard Tag Library (JSTL)
+
+### Database
+
+- MySQL
+- JDBC
+- MySQL Connector/J
+
+### Other Technologies
+
+- Apache Tomcat 10.1
+- Apache Maven
+- HikariCP
+- JUnit 5
+- Mockito
+
+
+
+---
+
+## Project Structure
+
+```text
+virtual-classroom/
+│
+├── pom.xml
+├── README.md
+├── .gitignore
+│
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── vc/
+│   │   │           ├── servlet/
+│   │   │           ├── dao/
+│   │   │           └── util/
+│   │   │
+│   │   ├── resources/
+│   │   │
+│   │   └── webapp/
+│   │       ├── WEB-INF/
+│   │       ├── css/
+│   │       ├── js/
+│   │       ├── index.jsp
+│   │       ├── login.jsp
+│   │       ├── register.jsp
+│   │       ├── dashboard.jsp
+│   │       ├── classrooms.jsp
+│   │       ├── classroom.jsp
+│   │       └── admin.jsp
+│   │
+│   └── test/
+│       └── java/
+│
+└── target/
