@@ -1,55 +1,63 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
 <%@ page import="java.util.List" %>
-<%@ page import="com.vc.servlet.ClassroomServlet.OnlineClass" %>
+<%@ page import="java.time.LocalTime" %>
+<%@ page import="java.time.LocalDate" %>
+<%@ page import="java.time.format.DateTimeFormatter" %>
+<%@ page import="java.lang.reflect.Field" %>
+<%@ page import="java.lang.reflect.Method" %>
 
 <%!
-    private String safe(String value) {
-        if (value == null) {
-            return "";
-        }
+private String getValue(Object obj, String name) {
+    if (obj == null) return "";
 
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+    try {
+        String methodName =
+                "get"
+                + Character.toUpperCase(name.charAt(0))
+                + name.substring(1);
+
+        Method method =
+                obj.getClass().getMethod(methodName);
+
+        Object value =
+                method.invoke(obj);
+
+        return value == null
+                ? ""
+                : String.valueOf(value);
+
+    } catch (Exception ignored) {
     }
-%>
 
-<%
-    String role = (String) session.getAttribute("role");
-    String userName = (String) session.getAttribute("name");
+    try {
+        Field field =
+                obj.getClass().getDeclaredField(name);
 
-    String[] classroom =
-            (String[]) request.getAttribute("classroom");
+        field.setAccessible(true);
 
-    List<String[]> teachers =
-            (List<String[]>) request.getAttribute("teachers");
+        Object value =
+                field.get(obj);
 
-    List<String[]> allTeachers =
-            (List<String[]>) request.getAttribute("allTeachers");
+        return value == null
+                ? ""
+                : String.valueOf(value);
 
-    List<String[]> students =
-            (List<String[]>) request.getAttribute("students");
+    } catch (Exception ignored) {
+    }
 
-    List<String[]> assignments =
-            (List<String[]>) request.getAttribute("assignments");
+    return "";
+}
 
-    List<String[]> submissionStatus =
-            (List<String[]>) request.getAttribute("submissionStatus");
+private String safe(Object value) {
+    if (value == null) return "";
 
-    List<String[]> studentSubmissions =
-            (List<String[]>) request.getAttribute("studentSubmissions");
-
-    List<OnlineClass> onlineClasses =
-            (List<OnlineClass>) request.getAttribute("onlineClasses");
-
-    Integer classroomId =
-            (Integer) request.getAttribute("cid");
-
-    String message =
-            request.getParameter("msg");
+    return String.valueOf(value)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
+}
 %>
 
 <!DOCTYPE html>
@@ -57,1202 +65,1931 @@
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0">
 
-    <title>Classroom | Virtual Classroom</title>
+<title>Virtual Classroom</title>
 
-    <link rel="stylesheet"
-          href="${pageContext.request.contextPath}/css/style.css?v=20260827">
+<link rel="stylesheet"
+      href="css/style.css">
 
-    <style>
+<style>
 
-        nav {
-            width: 100%;
-            background: #204a87;
-            color: #ffffff;
-            padding: 16px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-sizing: border-box;
-        }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f3f6fb;
+    color: #14213d;
+}
 
-        .nav-title {
-            font-size: 22px;
-            font-weight: bold;
-        }
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 30px auto;
+}
 
-        nav a {
-            color: #ffffff;
-            text-decoration: none;
-        }
+h1 {
+    font-size: 36px;
+    margin-bottom: 25px;
+}
 
-        nav a:hover {
-            text-decoration: underline;
-        }
+h2 {
+    margin-top: 0;
+}
 
-        main {
-            width: 90%;
-            max-width: 1100px;
-            margin: 30px auto;
-        }
+h3 {
+    margin-top: 0;
+}
 
-        .classroom-header,
-        .card {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
-        }
+.card {
+    background: #fff;
+    padding: 25px;
+    margin-bottom: 25px;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,.08);
+}
 
-        .classroom-header h1,
-        .card h2,
-        .card h3 {
-            color: #14213d;
-        }
+.teacher-item,
+.student-item {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
 
-        .classroom-header h1 {
-            margin-top: 0;
-        }
+.online-class-card {
+    background: #f8faff;
+    border-left: 5px solid #204a87;
+    padding: 20px;
+    margin-top: 15px;
+    border-radius: 8px;
+}
 
-        .card h2 {
-            margin-top: 0;
-        }
+input,
+textarea,
+select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    margin-top: 7px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    font-size: 15px;
+}
 
-        .card label {
-            display: block;
-            margin: 12px 0 6px;
-            font-weight: bold;
-        }
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
 
-        .card input[type="text"],
-        .card input[type="date"],
-        .card input[type="time"],
-        .card input[type="url"],
-        .card input[type="number"],
-        .card select,
-        .card textarea {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 14px;
-            border: 1px solid #cccccc;
-            border-radius: 8px;
-            font-size: 16px;
-            font-family: Arial, sans-serif;
-            box-sizing: border-box;
-        }
+input[type="file"] {
+    display: none;
+}
 
-        .card textarea {
-            resize: vertical;
-        }
+.choose-file-button {
+    display: inline-block;
+    background: #204a87;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    margin-top: 7px;
+}
 
-        .card input:focus,
-        .card select:focus,
-        .card textarea:focus {
-            outline: none;
-            border-color: #204a87;
-            box-shadow: 0 0 0 2px rgba(32, 74, 135, 0.10);
-        }
+.choose-file-button:hover {
+    background: #16396a;
+}
 
-        .card button,
-        .button {
-            display: inline-block;
-            padding: 12px 18px;
-            border: none;
-            border-radius: 8px;
-            background: #204a87;
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            cursor: pointer;
-        }
+.selected-file-name {
+    display: inline-block;
+    margin-left: 12px;
+    color: #555;
+    font-size: 14px;
+    vertical-align: middle;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-        .card button:hover,
-        .button:hover {
-            background: #16396a;
-        }
+.pdf-upload-hint {
+    display: block;
+    margin-top: 8px;
+    color: #666;
+    font-size: 13px;
+}
 
-        .danger {
-            background: #b71c1c !important;
-        }
+.deadline-closed {
+    background: #fff3f3;
+    border: 1px solid #efb5b5;
+    border-left: 5px solid #c62828;
+    padding: 16px;
+    margin-top: 18px;
+    border-radius: 8px;
+    color: #8b1e1e;
+}
 
-        .danger:hover {
-            background: #8e1515 !important;
-        }
+.deadline-closed h4 {
+    margin: 0 0 7px 0;
+    color: #b71c1c;
+}
 
-        .online-class-card,
-        .assignment-card,
-        .submission-card {
-            background: #f8fafc;
-            border: 1px solid #d9e1ec;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 18px;
-        }
+.deadline-closed p {
+    margin: 0;
+    line-height: 1.5;
+}
 
-        .student-answer {
-            background: #ffffff;
-            border: 1px solid #d9e1ec;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0 20px;
-            white-space: pre-wrap;
-            line-height: 1.6;
-            color: #222222;
-        }
+.pdf-view-button {
+    display: inline-block;
+    padding: 7px 12px;
+    background: #204a87;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+}
 
-        .feedback-box {
-            background: #eef4ff;
-            border-left: 4px solid #204a87;
-            padding: 12px;
-            margin: 10px 0 20px;
-            border-radius: 5px;
-        }
+.pdf-view-button:hover {
+    background: #16396a;
+}
 
-        .submitted {
-            color: #008a35;
-            font-weight: bold;
-        }
+.pdf-file-name {
+    margin-top: 6px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-        .not-submitted {
-            color: #b71c1c;
-            font-weight: bold;
-        }
+.question-card {
+    background: #f8faff;
+    border-left: 5px solid #204a87;
+    padding: 18px;
+    margin-top: 15px;
+    border-radius: 8px;
+}
 
-        .graded {
-            color: #008a35;
-            font-weight: bold;
-        }
+.question-card h3 {
+    margin-bottom: 8px;
+}
 
-        .not-graded {
-            color: #b26a00;
-            font-weight: bold;
-        }
+.question-text {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    padding: 14px;
+    margin: 10px 0 15px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 
-        .success-message {
-            background: #d9f7e5;
-            color: #087a35;
-            border-radius: 8px;
-            padding: 14px;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
+.answer-box {
+    background: #eef6ff;
+    border-radius: 7px;
+    padding: 14px;
+    margin-top: 12px;
+}
 
-        .empty {
-            color: #666666;
-        }
+.unanswered {
+    color: #a33;
+    font-weight: bold;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+.answered {
+    color: #256029;
+    font-weight: bold;
+}
 
-        table th,
-        table td {
-            border: 1px solid #dddddd;
-            padding: 12px;
-            text-align: left;
-            vertical-align: top;
-        }
+label {
+    font-weight: bold;
+}
 
-        table th {
-            background: #204a87;
-            color: #ffffff;
-        }
+button,
+.button {
+    display: inline-block;
+    background: #204a87;
+    color: #fff;
+    border: none;
+    padding: 11px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: bold;
+    margin-right: 8px;
+}
 
-        table tr:nth-child(even) {
-            background: #f8fafc;
-        }
+button:hover,
+.button:hover {
+    background: #16396a;
+}
 
-        ul {
-            padding-left: 20px;
-        }
+.danger {
+    background: #c62828;
+}
 
-        li {
-            margin-bottom: 10px;
-        }
+.danger:hover {
+    background: #a51f1f;
+}
 
-        @media (max-width: 700px) {
+.empty {
+    color: #666;
+}
 
-            nav {
-                padding: 14px;
-                flex-direction: column;
-                gap: 10px;
-                align-items: flex-start;
-            }
+.message {
+    background: #e8f5e9;
+    color: #256029;
+    padding: 12px;
+    border-radius: 7px;
+    margin-bottom: 20px;
+}
 
-            main {
-                width: calc(100% - 20px);
-                margin: 15px auto;
-            }
+.error {
+    background: #ffebee;
+    color: #b71c1c;
+    padding: 12px;
+    border-radius: 7px;
+    margin-bottom: 20px;
+}
 
-            .card,
-            .classroom-header {
-                padding: 18px;
-            }
+.small {
+    color: #666;
+    font-size: 14px;
+}
 
-            table {
-                min-width: 750px;
-            }
+.pdf-note {
+    background: #f1f5f9;
+    border-left: 4px solid #204a87;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    font-size: 14px;
+}
 
-        }
+.file-label {
+    display: block;
+    margin-top: 10px;
+}
 
-    </style>
+.pdf-submission {
+    background: #eef6ff;
+    border: 1px solid #c9ddf5;
+    border-left: 5px solid #204a87;
+    padding: 18px;
+    margin-top: 18px;
+    border-radius: 8px;
+}
+
+.pdf-submission span {
+    display: inline-block;
+    margin-left: 8px;
+    font-weight: normal;
+    word-break: break-word;
+}
+
+.pdf-actions {
+    margin-top: 15px;
+}
+
+.pdf-actions .button {
+    margin-bottom: 8px;
+}
+
+/* =========================================================
+   STUDENT HELP / ASK QUESTION
+   ========================================================= */
+
+.help-card {
+    background: #ffffff;
+    border-left: 5px solid #204a87;
+}
+
+.help-card h2 {
+    margin-bottom: 10px;
+}
+
+.help-card p {
+    color: #555;
+    line-height: 1.6;
+}
+
+.help-card textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+.help-card button {
+    margin-top: 5px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background: #f1f5f9;
+}
+
+
+.grade-box {
+    min-width: 240px;
+}
+
+.grade-box input[type="number"] {
+    width: 110px;
+    margin-bottom: 10px;
+}
+
+.grade-box textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+
+.grade-box .grade-label {
+    display: block;
+    margin-top: 6px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.grade-box .save-grade-button {
+    background: #204a87;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 9px 15px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.grade-box .save-grade-button:hover {
+    background: #16396a;
+}
+
+.grade-current {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+</style>
 
 </head>
 
 <body>
 
-<nav>
-
-    <div class="nav-title">
-        Virtual Classroom
-    </div>
-
-    <div>
-
-        <span>
-            Welcome,
-            <%= safe(userName == null ? "User" : userName) %>
-        </span>
-
-        &nbsp;&nbsp;
-
-        <a href="${pageContext.request.contextPath}/dashboard">
-            Dashboard
-        </a>
-
-        &nbsp;&nbsp;
-
-        <a href="${pageContext.request.contextPath}/logout">
-            Logout
-        </a>
-
-    </div>
-
-</nav>
-
-<main>
+<div class="container">
 
 <%
-    if (classroom == null) {
+
+String role =
+        (String) session.getAttribute("role");
+
+String userName =
+        (String) session.getAttribute("name");
+
+String[] classroom =
+        (String[]) request.getAttribute("classroom");
+
+Integer classroomId =
+        (Integer) request.getAttribute("cid");
+
+List<String[]> teachers =
+        (List<String[]>)
+        request.getAttribute("teachers");
+
+List<String[]> allTeachers =
+        (List<String[]>)
+        request.getAttribute("allTeachers");
+
+List<String[]> students =
+        (List<String[]>)
+        request.getAttribute("students");
+
+List<String[]> assignments =
+        (List<String[]>)
+        request.getAttribute("assignments");
+
+List<String[]> submissionStatus =
+        (List<String[]>)
+        request.getAttribute("submissionStatus");
+
+List<?> onlineClasses =
+        (List<?>)
+        request.getAttribute("onlineClasses");
+
+List<String[]> studentQuestions =
+        (List<String[]>)
+        request.getAttribute("studentQuestions");
+
+DateTimeFormatter timeFormatter =
+        DateTimeFormatter.ofPattern("hh:mm a");
+
+String message =
+        request.getParameter("msg");
+
+String error =
+        request.getParameter("error");
+
 %>
 
-    <div class="card">
 
-        <h2>
-            Classroom not found.
-        </h2>
+<!-- =========================================================
+     MESSAGE
+     ========================================================= -->
 
-        <a class="button"
-           href="${pageContext.request.contextPath}/dashboard">
-            Back to Dashboard
-        </a>
+<% if (message != null && !message.isBlank()) { %>
 
-    </div>
+<div class="message">
+    <%= safe(message) %>
+</div>
+
+<% } %>
+
+
+<% if (error != null && !error.isBlank()) { %>
+
+<div class="error">
+    <%= safe(error) %>
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     CLASSROOM HEADER
+     ========================================================= -->
+
+<h1>
+    <%= classroom != null
+            ? safe(classroom[1])
+            : "Classroom" %>
+</h1>
+
+
+<% if (classroom != null) { %>
+
+<div class="card">
+
+    <p>
+        <strong>Subject:</strong>
+        <%= classroom.length > 2
+                ? safe(classroom[2])
+                : "" %>
+    </p>
+
+    <% if (classroom.length > 3 &&
+           classroom[3] != null &&
+           !classroom[3].isBlank()) { %>
+
+    <p>
+        <strong>Description:</strong>
+        <%= safe(classroom[3]) %>
+    </p>
+
+    <% } %>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     TEACHERS
+     ========================================================= -->
+
+<div class="card">
+
+<h2>Teachers</h2>
 
 <%
-    } else {
+if (teachers == null || teachers.isEmpty()) {
 %>
 
-    <% if (message != null && !message.isBlank()) { %>
+<p class="empty">
+    No teachers assigned.
+</p>
 
-        <div class="success-message">
-            <%= safe(message) %>
-        </div>
+<%
+} else {
 
-    <% } %>
+for (String[] teacher : teachers) {
+%>
 
+<div class="teacher-item">
 
-    <!-- CLASSROOM -->
+    <strong>
+        <%= teacher.length > 1
+                ? safe(teacher[1])
+                : "" %>
+    </strong>
 
-    <div class="classroom-header">
+    <% if (teacher.length > 2) { %>
 
-        <h1>
-            <%= safe(classroom[1]) %>
-        </h1>
+    <br>
 
-        <p>
-            <strong>Subject:</strong>
-            <%= safe(classroom[2]) %>
-        </p>
-
-        <% if (classroom.length > 3 &&
-               classroom[3] != null &&
-               !classroom[3].isBlank()) { %>
-
-            <p>
-                <strong>Description:</strong>
-                <%= safe(classroom[3]) %>
-            </p>
-
-        <% } %>
-
-    </div>
-
-
-    <!-- TEACHERS -->
-
-    <div class="card">
-
-        <h2>Teachers</h2>
-
-        <% if (teachers == null || teachers.isEmpty()) { %>
-
-            <p class="empty">
-                No teachers assigned to this classroom.
-            </p>
-
-        <% } else { %>
-
-            <ul>
-
-                <% for (String[] teacher : teachers) { %>
-
-                    <li>
-
-                        <strong>
-                            <%= safe(teacher[1]) %>
-                        </strong>
-
-                        <% if (teacher.length > 2 &&
-                               teacher[2] != null &&
-                               !teacher[2].isBlank()) { %>
-
-                            -
-                            <%= safe(teacher[2]) %>
-
-                        <% } %>
-
-                    </li>
-
-                <% } %>
-
-            </ul>
-
-        <% } %>
-
-    </div>
-
-
-    <!-- ADD TEACHER -->
-
-    <% if ("TEACHER".equals(role)) { %>
-
-        <div class="card">
-
-            <h2>Add Teacher</h2>
-
-            <% if (allTeachers != null &&
-                   !allTeachers.isEmpty()) { %>
-
-                <form
-                    action="${pageContext.request.contextPath}/action"
-                    method="post">
-
-                    <input
-                        type="hidden"
-                        name="action"
-                        value="addTeacher">
-
-                    <input
-                        type="hidden"
-                        name="classroomId"
-                        value="<%= classroomId %>">
-
-                    <label>
-                        Select Teacher
-                    </label>
-
-                    <select
-                        name="teacherId"
-                        required>
-
-                        <option value="">
-                            -- Select Teacher --
-                        </option>
-
-                        <% for (String[] teacher : allTeachers) { %>
-
-                            <option value="<%= safe(teacher[0]) %>">
-                                <%= safe(teacher[1]) %>
-                            </option>
-
-                        <% } %>
-
-                    </select>
-
-                    <button type="submit">
-                        Add Teacher
-                    </button>
-
-                </form>
-
-            <% } else { %>
-
-                <p class="empty">
-                    No teachers available.
-                </p>
-
-            <% } %>
-
-        </div>
+    <span class="small">
+        <%= safe(teacher[2]) %>
+    </span>
 
     <% } %>
 
+</div>
 
-    <!-- STUDENTS -->
+<%
+}
+}
+%>
 
-    <div class="card">
+</div>
 
-        <h2>Students</h2>
 
-        <% if (students == null || students.isEmpty()) { %>
+<!-- =========================================================
+     ADD TEACHER
+     ========================================================= -->
 
-            <p class="empty">
-                No students enrolled in this classroom yet.
-            </p>
+<% if ("TEACHER".equals(role)) { %>
 
-        <% } else { %>
+<div class="card">
 
-            <ul>
+<h2>Add Teacher</h2>
 
-                <% for (String[] student : students) { %>
+<form
+    action="<%=request.getContextPath()%>/action"
+    method="post">
 
-                    <li>
+<input
+    type="hidden"
+    name="action"
+    value="addTeacher">
 
-                        <strong>
-                            <%= safe(student[1]) %>
-                        </strong>
+<input
+    type="hidden"
+    name="classroomId"
+    value="<%=classroomId%>">
 
-                        <% if (student.length > 2 &&
-                               student[2] != null &&
-                               !student[2].isBlank()) { %>
+<select
+    name="teacherId"
+    required>
 
-                            -
-                            <%= safe(student[2]) %>
+<option value="">
+    -- Select Teacher --
+</option>
 
-                        <% } %>
+<%
+if (allTeachers != null) {
 
-                    </li>
+    for (String[] teacher : allTeachers) {
+%>
 
-                <% } %>
-
-            </ul>
-
-        <% } %>
-
-    </div>
-
-
-    <!-- CREATE ASSIGNMENT -->
-
-    <% if ("TEACHER".equals(role)) { %>
-
-        <div class="card">
-
-            <h2>Create Assignment</h2>
-
-            <form
-                action="${pageContext.request.contextPath}/action"
-                method="post">
-
-                <input
-                    type="hidden"
-                    name="action"
-                    value="assignment">
-
-                <input
-                    type="hidden"
-                    name="classroomId"
-                    value="<%= classroomId %>">
-
-                <label for="title">
-                    Title
-                </label>
-
-                <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    placeholder="Assignment title"
-                    maxlength="150"
-                    required>
-
-                <label for="description">
-                    Description
-                </label>
-
-                <textarea
-                    id="description"
-                    name="description"
-                    rows="5"
-                    placeholder="Assignment description"
-                    required></textarea>
-
-                <label for="dueDate">
-                    Due Date
-                </label>
-
-                <input
-                    type="date"
-                    id="dueDate"
-                    name="dueDate"
-                    required>
-
-                <button type="submit">
-                    Create Assignment
-                </button>
-
-            </form>
-
-        </div>
-
-    <% } %>
-
-
-    <!-- ONLINE CLASS -->
-
-    <% if ("TEACHER".equals(role)) { %>
-
-        <div class="card">
-
-            <h2>Schedule Online Class</h2>
-
-            <form
-                action="${pageContext.request.contextPath}/online-class"
-                method="post">
-
-                <input
-                    type="hidden"
-                    name="action"
-                    value="create">
-
-                <input
-                    type="hidden"
-                    name="classroomId"
-                    value="<%= classroomId %>">
-
-                <label for="topic">
-                    Class Topic
-                </label>
-
-                <input
-                    type="text"
-                    id="topic"
-                    name="topic"
-                    placeholder="Example: Introduction to Java"
-                    maxlength="200"
-                    required>
-
-                <label for="classDate">
-                    Class Date
-                </label>
-
-                <input
-                    type="date"
-                    id="classDate"
-                    name="classDate"
-                    required>
-
-                <label for="startTime">
-                    Start Time
-                </label>
-
-                <input
-                    type="time"
-                    id="startTime"
-                    name="startTime"
-                    required>
-
-                <label for="endTime">
-                    End Time
-                </label>
-
-                <input
-                    type="time"
-                    id="endTime"
-                    name="endTime">
-
-                <label for="meetingLink">
-                    Meeting Link
-                </label>
-
-                <input
-                    type="url"
-                    id="meetingLink"
-                    name="meetingLink"
-                    placeholder="https://meet.google.com/..."
-                    maxlength="500"
-                    required>
-
-                <button type="submit">
-                    Schedule Online Class
-                </button>
-
-            </form>
-
-        </div>
-
-    <% } %>
-
-
-    <!-- ONLINE CLASSES -->
-
-    <div class="card">
-
-        <h2>Online Classes</h2>
-
-        <% if (onlineClasses == null ||
-               onlineClasses.isEmpty()) { %>
-
-            <p class="empty">
-                No online classes scheduled for this classroom.
-            </p>
-
-        <% } else { %>
-
-            <% for (OnlineClass onlineClass : onlineClasses) { %>
-
-                <div class="online-class-card">
-
-                    <h3>
-                        <%= safe(onlineClass.topic) %>
-                    </h3>
-
-                    <p>
-                        <strong>Teacher:</strong>
-                        <%= safe(onlineClass.teacherName) %>
-                    </p>
-
-                    <p>
-                        <strong>Date:</strong>
-                        <%= safe(onlineClass.date) %>
-                    </p>
-
-                    <p>
-                        <strong>Time:</strong>
-                        <%= safe(onlineClass.startTime) %>
-
-                        <% if (onlineClass.endTime != null &&
-                               !onlineClass.endTime.isBlank()) { %>
-
-                            -
-                            <%= safe(onlineClass.endTime) %>
-
-                        <% } %>
-                    </p>
-
-                    <p>
-
-                        <a
-                            href="<%= safe(onlineClass.meetingLink) %>"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="button">
-
-                            Join Online Class
-
-                        </a>
-
-                    </p>
-
-
-                    <% if ("TEACHER".equals(role)) { %>
-
-                        <form
-                            action="${pageContext.request.contextPath}/online-class"
-                            method="post">
-
-                            <input
-                                type="hidden"
-                                name="action"
-                                value="delete">
-
-                            <input
-                                type="hidden"
-                                name="onlineClassId"
-                                value="<%= onlineClass.id %>">
-
-                            <input
-                                type="hidden"
-                                name="classroomId"
-                                value="<%= classroomId %>">
-
-                            <button
-                                type="submit"
-                                class="danger"
-                                onclick="return confirm('Are you sure you want to delete this online class?');">
-
-                                Delete Online Class
-
-                            </button>
-
-                        </form>
-
-                    <% } %>
-
-                </div>
-
-            <% } %>
-
-        <% } %>
-
-    </div>
-
-
-    <!-- ASSIGNMENTS -->
-
-    <div class="card">
-
-        <h2>Assignments</h2>
-
-        <% if (assignments == null ||
-               assignments.isEmpty()) { %>
-
-            <p class="empty">
-                No assignments available.
-            </p>
-
-        <% } else { %>
-
-            <% for (String[] assignment : assignments) { %>
-
-                <div class="assignment-card">
-
-                    <h3>
-                        <%= safe(assignment[1]) %>
-                    </h3>
-
-                    <p>
-                        <strong>Description:</strong>
-                        <%= assignment[2] != null
-                                ? safe(assignment[2])
-                                : "No description" %>
-                    </p>
-
-                    <p>
-                        <strong>Due Date:</strong>
-                        <%= safe(assignment[3]) %>
-                    </p>
-
-
-                    <!-- STUDENT SUBMISSION / RESULT -->
-
-                    <% if ("STUDENT".equals(role)) { %>
-
-                        <%
-                            String currentAssignmentId = assignment[0];
-
-                            String existingAnswer = "";
-                            String existingSubmittedAt = "";
-                            String existingMarks = "";
-                            String existingFeedback = "";
-
-                            if (studentSubmissions != null) {
-
-                                for (String[] studentSubmission :
-                                        studentSubmissions) {
-
-                                    if (studentSubmission != null &&
-                                        studentSubmission.length >= 5 &&
-                                        currentAssignmentId.equals(
-                                                studentSubmission[0])) {
-
-                                        existingAnswer =
-                                                studentSubmission[1];
-
-                                        existingSubmittedAt =
-                                                studentSubmission[2];
-
-                                        existingMarks =
-                                                studentSubmission[3];
-
-                                        existingFeedback =
-                                                studentSubmission[4];
-
-                                        break;
-                                    }
-                                }
-                            }
-
-                            boolean hasSubmission =
-                                    existingSubmittedAt != null &&
-                                    !existingSubmittedAt.isBlank();
-                        %>
-
-                        <% if (!hasSubmission) { %>
-
-                            <form
-                                action="${pageContext.request.contextPath}/action"
-                                method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="submit">
-
-                                <input
-                                    type="hidden"
-                                    name="assignmentId"
-                                    value="<%= safe(assignment[0]) %>">
-
-                                <input
-                                    type="hidden"
-                                    name="classroomId"
-                                    value="<%= classroomId %>">
-
-                                <label>
-                                    Your Answer
-                                </label>
-
-                                <textarea
-                                    name="answer"
-                                    rows="6"
-                                    placeholder="Write your answer here..."
-                                    required></textarea>
-
-                                <button type="submit">
-                                    Submit Assignment
-                                </button>
-
-                            </form>
-
-                        <% } else { %>
-
-                            <div class="submission-card">
-
-                                <h3>
-                                    Your Submission
-                                </h3>
-
-                                <p>
-                                    <strong>Submitted:</strong>
-                                    <span class="submitted">
-                                        <%= safe(existingSubmittedAt) %>
-                                    </span>
-                                </p>
-
-                                <p>
-                                    <strong>Your Answer:</strong>
-                                </p>
-
-                                <div class="student-answer">
-                                    <%= safe(existingAnswer) %>
-                                </div>
-
-                                <p>
-                                    <strong>Marks:</strong>
-
-                                    <% if (existingMarks == null ||
-                                           existingMarks.isBlank()) { %>
-
-                                        <span class="not-graded">
-                                            Not Graded Yet
-                                        </span>
-
-                                    <% } else { %>
-
-                                        <span class="graded">
-                                            <%= safe(existingMarks) %> / 100
-                                        </span>
-
-                                    <% } %>
-                                </p>
-
-                                <div class="feedback-box">
-
-                                    <strong>
-                                        Teacher Feedback
-                                    </strong>
-
-                                    <% if (existingFeedback == null ||
-                                           existingFeedback.isBlank()) { %>
-
-                                        <p>
-                                            Your teacher has not provided
-                                            feedback yet.
-                                        </p>
-
-                                    <% } else { %>
-
-                                        <p>
-                                            <%= safe(existingFeedback) %>
-                                        </p>
-
-                                    <% } %>
-
-                                </div>
-
-                                <form
-                                    action="${pageContext.request.contextPath}/action"
-                                    method="post">
-
-                                    <input
-                                        type="hidden"
-                                        name="action"
-                                        value="submit">
-
-                                    <input
-                                        type="hidden"
-                                        name="assignmentId"
-                                        value="<%= safe(assignment[0]) %>">
-
-                                    <input
-                                        type="hidden"
-                                        name="classroomId"
-                                        value="<%= classroomId %>">
-
-                                    <label>
-                                        Update Your Answer
-                                    </label>
-
-                                    <textarea
-                                        name="answer"
-                                        rows="6"
-                                        required><%= safe(existingAnswer) %></textarea>
-
-                                    <button type="submit">
-                                        Resubmit Assignment
-                                    </button>
-
-                                </form>
-
-                            </div>
-
-                        <% } %>
-
-                    <% } %>
-
-                </div>
-
-            <% } %>
-
-        <% } %>
-
-    </div>
-
-
-    <!-- TEACHER SUBMISSIONS -->
-
-    <% if ("TEACHER".equals(role)) { %>
-
-        <div class="card">
-
-            <h2>Student Submissions</h2>
-
-            <% if (submissionStatus == null ||
-                   submissionStatus.isEmpty()) { %>
-
-                <p class="empty">
-                    No student submission data available yet.
-                </p>
-
-            <% } else { %>
-
-                <% for (String[] status : submissionStatus) {
-
-                    String assignmentId = status[0];
-                    String assignmentTitle = status[1];
-                    String studentName = status[2];
-                    String submittedAt = status[3];
-                    String answer = status[4];
-                    String marks = status[5];
-                    String feedback = status[6];
-                    String studentId = status[7];
-                %>
-
-                    <div class="submission-card">
-
-                        <h3>
-                            <%= safe(assignmentTitle) %>
-                        </h3>
-
-                        <p>
-                            <strong>Student:</strong>
-                            <%= safe(studentName) %>
-                        </p>
-
-                        <p>
-                            <strong>Submitted:</strong>
-
-                            <% if (submittedAt == null ||
-                                   submittedAt.isBlank()) { %>
-
-                                <span class="not-submitted">
-                                    Not Submitted
-                                </span>
-
-                            <% } else { %>
-
-                                <span class="submitted">
-                                    <%= safe(submittedAt) %>
-                                </span>
-
-                            <% } %>
-
-                        </p>
-
-
-                        <!-- ANSWER -->
-
-                        <p>
-                            <strong>Student Answer:</strong>
-                        </p>
-
-                        <div class="student-answer">
-
-                            <% if (answer == null ||
-                                   answer.isBlank()) { %>
-
-                                <span class="not-submitted">
-                                    Student has not submitted an answer.
-                                </span>
-
-                            <% } else { %>
-
-                                <%= safe(answer) %>
-
-                            <% } %>
-
-                        </div>
-
-
-                        <!-- CURRENT MARKS -->
-
-                        <p>
-
-                            <strong>
-                                Current Marks:
-                            </strong>
-
-                            <% if (marks == null ||
-                                   marks.isBlank()) { %>
-
-                                <span class="not-graded">
-                                    Not Graded
-                                </span>
-
-                            <% } else { %>
-
-                                <span class="graded">
-                                    <%= safe(marks) %> / 100
-                                </span>
-
-                            <% } %>
-
-                        </p>
-
-
-                        <!-- CURRENT FEEDBACK -->
-
-                        <% if (feedback != null &&
-                               !feedback.isBlank()) { %>
-
-                            <div class="feedback-box">
-
-                                <strong>
-                                    Current Feedback:
-                                </strong>
-
-                                <p>
-                                    <%= safe(feedback) %>
-                                </p>
-
-                            </div>
-
-                        <% } %>
-
-
-                        <!-- GRADING FORM -->
-
-                        <% if (submittedAt != null &&
-                               !submittedAt.isBlank()) { %>
-
-                            <form
-                                action="${pageContext.request.contextPath}/action"
-                                method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="gradeSubmission">
-
-                                <input
-                                    type="hidden"
-                                    name="assignmentId"
-                                    value="<%= assignmentId %>">
-
-                                <input
-                                    type="hidden"
-                                    name="studentId"
-                                    value="<%= studentId %>">
-
-                                <input
-                                    type="hidden"
-                                    name="classroomId"
-                                    value="<%= classroomId %>">
-
-
-                                <label
-                                    for="marks_<%= assignmentId %>_<%= studentId %>">
-
-                                    Marks (0 - 100)
-
-                                </label>
-
-                                <input
-                                    type="number"
-                                    id="marks_<%= assignmentId %>_<%= studentId %>"
-                                    name="marks"
-                                    min="0"
-                                    max="100"
-                                    value="<%= marks != null ? safe(marks) : "" %>"
-                                    required>
-
-
-                                <label
-                                    for="feedback_<%= assignmentId %>_<%= studentId %>">
-
-                                    Feedback
-
-                                </label>
-
-                                <textarea
-                                    id="feedback_<%= assignmentId %>_<%= studentId %>"
-                                    name="feedback"
-                                    rows="5"
-                                    placeholder="Write feedback for the student..."><%= feedback != null ? safe(feedback) : "" %></textarea>
-
-
-                                <button type="submit">
-                                    Save Marks &amp; Feedback
-                                </button>
-
-                            </form>
-
-                        <% } %>
-
-                    </div>
-
-                <% } %>
-
-            <% } %>
-
-        </div>
-
-    <% } %>
+<option value="<%=safe(teacher[0])%>">
+    <%=teacher.length > 1
+            ? safe(teacher[1])
+            : ""%>
+</option>
 
 <%
     }
+}
 %>
 
-</main>
+</select>
+
+<button type="submit">
+    Add Teacher
+</button>
+
+</form>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     STUDENTS
+     ========================================================= -->
+
+<div class="card">
+
+<h2>Students</h2>
+
+<%
+if (students == null || students.isEmpty()) {
+%>
+
+<p class="empty">
+    No students enrolled.
+</p>
+
+<%
+} else {
+
+for (String[] student : students) {
+%>
+
+<div class="student-item">
+
+    <strong>
+        <%=student.length > 1
+                ? safe(student[1])
+                : ""%>
+    </strong>
+
+    <% if (student.length > 2) { %>
+
+    <br>
+
+    <span class="small">
+        <%=safe(student[2])%>
+    </span>
+
+    <% } %>
+
+
+    <% if ("TEACHER".equals(role)) { %>
+
+    <form
+        action="<%=request.getContextPath()%>/action"
+        method="post"
+        style="margin-top:10px;">
+
+        <input
+            type="hidden"
+            name="action"
+            value="removeStudent">
+
+        <input
+            type="hidden"
+            name="classroomId"
+            value="<%=classroomId%>">
+
+        <input
+            type="hidden"
+            name="studentId"
+            value="<%=student[0]%>">
+
+        <button
+            type="submit"
+            class="danger"
+            onclick="return confirm('Remove this student from the classroom?');">
+
+            Remove Student
+
+        </button>
+
+    </form>
+
+    <% } %>
+
+</div>
+
+<%
+}
+}
+%>
+
+</div>
+
+
+<!-- =========================================================
+     SCHEDULE ONLINE CLASS
+     ========================================================= -->
+
+<% if ("TEACHER".equals(role)) { %>
+
+<div class="card">
+
+<h2>Schedule Online Class</h2>
+
+<p class="small">
+    All scheduled times are Indian Standard Time (IST).
+</p>
+
+<form
+    action="<%=request.getContextPath()%>/action"
+    method="post">
+
+<input
+    type="hidden"
+    name="action"
+    value="scheduleOnlineClass">
+
+<input
+    type="hidden"
+    name="classroomId"
+    value="<%=classroomId%>">
+
+<label>Topic</label>
+
+<input
+    type="text"
+    name="topic"
+    placeholder="Example: Java OOP Concepts"
+    maxlength="200"
+    required>
+
+<label>Date</label>
+
+<input
+    type="date"
+    name="classDate"
+    required>
+
+<label>Start Time (IST)</label>
+
+<input
+    type="time"
+    name="startTime"
+    required>
+
+<label>End Time (IST)</label>
+
+<input
+    type="time"
+    name="endTime">
+
+<label>Meeting Link</label>
+
+<input
+    type="url"
+    name="meetingLink"
+    placeholder="https://meet.google.com/..."
+    maxlength="500"
+    required>
+
+<button type="submit">
+    Schedule Online Class
+</button>
+
+</form>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     ONLINE CLASSES
+     ========================================================= -->
+
+<div class="card">
+
+<h2>Online Classes</h2>
+
+<%
+if (onlineClasses == null ||
+    onlineClasses.isEmpty()) {
+%>
+
+<p class="empty">
+    No online classes scheduled.
+</p>
+
+<%
+} else {
+
+for (Object onlineClass : onlineClasses) {
+
+String topic =
+        getValue(onlineClass, "topic");
+
+String teacherName =
+        getValue(onlineClass, "teacherName");
+
+String date =
+        getValue(onlineClass, "date");
+
+String startTime =
+        getValue(onlineClass, "startTime");
+
+String endTime =
+        getValue(onlineClass, "endTime");
+
+String meetingLink =
+        getValue(onlineClass, "meetingLink");
+
+String onlineClassId =
+        getValue(onlineClass, "id");
+
+String startDisplay =
+        startTime;
+
+String endDisplay =
+        endTime;
+
+try {
+
+    if (startDisplay != null &&
+        !startDisplay.isBlank()) {
+
+        LocalTime start =
+                LocalTime.parse(startDisplay);
+
+        startDisplay =
+                start.format(timeFormatter);
+    }
+
+    if (endDisplay != null &&
+        !endDisplay.isBlank()) {
+
+        LocalTime end =
+                LocalTime.parse(endDisplay);
+
+        endDisplay =
+                end.format(timeFormatter);
+    }
+
+} catch (Exception ignored) {
+}
+
+%>
+
+<div class="online-class-card">
+
+<h3>
+    <%=safe(topic)%>
+</h3>
+
+<p>
+    <strong>Teacher:</strong>
+    <%=safe(teacherName)%>
+</p>
+
+<p>
+    <strong>Date:</strong>
+    <%=safe(date)%>
+</p>
+
+<p>
+
+<strong>Time:</strong>
+
+<%=safe(startDisplay)%>
+
+<% if (endDisplay != null &&
+       !endDisplay.isBlank()) { %>
+
+-
+<%=safe(endDisplay)%>
+
+<% } %>
+
+<strong>(IST)</strong>
+
+</p>
+
+
+<% if (meetingLink != null &&
+       !meetingLink.isBlank()) { %>
+
+<p>
+
+<a
+    href="<%=safe(meetingLink)%>"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="button">
+
+    Join Online Class
+
+</a>
+
+</p>
+
+<% } %>
+
+
+<% if ("TEACHER".equals(role)) { %>
+
+<form
+    action="<%=request.getContextPath()%>/action"
+    method="post"
+    style="margin-top:15px;">
+
+<input
+    type="hidden"
+    name="action"
+    value="deleteOnlineClass">
+
+<input
+    type="hidden"
+    name="onlineClassId"
+    value="<%=safe(onlineClassId)%>">
+
+<input
+    type="hidden"
+    name="classroomId"
+    value="<%=classroomId%>">
+
+<button
+    type="submit"
+    class="danger"
+    onclick="return confirm('Delete this online class?');">
+
+    Delete Online Class
+
+</button>
+
+</form>
+
+<% } %>
+
+</div>
+
+<%
+}
+}
+%>
+
+</div>
+
+
+<!-- =========================================================
+     CREATE ASSIGNMENT
+     ========================================================= -->
+
+<% if ("TEACHER".equals(role)) { %>
+
+<div class="card">
+
+<h2>Create Assignment</h2>
+
+<form
+    action="<%=request.getContextPath()%>/action"
+    method="post">
+
+<input
+    type="hidden"
+    name="action"
+    value="assignment">
+
+<input
+    type="hidden"
+    name="classroomId"
+    value="<%=classroomId%>">
+
+<label>Title</label>
+
+<input
+    type="text"
+    name="title"
+    placeholder="Title"
+    maxlength="150"
+    required>
+
+<label>Description</label>
+
+<textarea
+    name="description"
+    placeholder="Description"
+    rows="5"></textarea>
+
+<label>Due Date</label>
+
+<input
+    type="date"
+    name="dueDate"
+    required>
+
+<button type="submit">
+    Create Assignment
+</button>
+
+</form>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     ASSIGNMENTS
+     ========================================================= -->
+
+<div class="card">
+
+<h2>Assignments</h2>
+
+<%
+if (assignments == null ||
+    assignments.isEmpty()) {
+%>
+
+<p class="empty">
+    No assignments available.
+</p>
+
+<%
+} else {
+
+for (String[] assignment : assignments) {
+%>
+
+<div class="online-class-card">
+
+<h3>
+    <%=assignment.length > 1
+            ? safe(assignment[1])
+            : ""%>
+</h3>
+
+
+<p>
+
+<strong>Description:</strong>
+
+<%
+if (assignment.length > 2 &&
+    assignment[2] != null &&
+    !assignment[2].isBlank()) {
+%>
+
+<%=safe(assignment[2])%>
+
+<%
+} else {
+%>
+
+No description
+
+<%
+}
+%>
+
+</p>
+
+
+<p>
+
+<strong>Due:</strong>
+
+<%=assignment.length > 3
+        ? safe(assignment[3])
+        : ""%>
+
+</p>
+
+
+<!-- =====================================================
+     STUDENT PDF SUBMISSION
+     ===================================================== -->
+
+<%
+boolean deadlinePassed = false;
+
+if (assignment.length > 3 &&
+    assignment[3] != null &&
+    !assignment[3].isBlank()) {
+
+    try {
+        LocalDate dueDate =
+                LocalDate.parse(assignment[3]);
+
+        deadlinePassed =
+                LocalDate.now().isAfter(dueDate);
+
+    } catch (Exception ignored) {
+        deadlinePassed = false;
+    }
+}
+%>
+
+<% if ("STUDENT".equals(role)) { %>
+
+<% if (deadlinePassed) { %>
+
+<div class="deadline-closed">
+
+    <h4>Submission Closed</h4>
+
+    <p>
+        The deadline for this assignment has passed.
+        You cannot submit a text answer or PDF for this assignment.
+    </p>
+
+    <p style="margin-top:8px;">
+        <strong>Due date:</strong>
+        <%=safe(assignment[3])%>
+    </p>
+
+</div>
+
+<% } else { %>
+
+<form
+    action="<%=request.getContextPath()%>/action"
+    method="post"
+    enctype="multipart/form-data">
+
+<input
+    type="hidden"
+    name="action"
+    value="submitAssignment">
+
+<input
+    type="hidden"
+    name="assignmentId"
+    value="<%=assignment[0]%>">
+
+<input
+    type="hidden"
+    name="classroomId"
+    value="<%=classroomId%>">
+
+
+<label>Your Answer</label>
+
+<textarea
+    name="answer"
+    placeholder="Optional text answer..."></textarea>
+
+
+<div class="pdf-note">
+
+<strong>PDF Submission</strong>
+
+<br>
+
+Select your assignment as a PDF file.
+
+<br>
+
+<span class="small">
+    PDF only. Maximum file size: 10 MB.
+</span>
+
+</div>
+
+
+<label
+    class="file-label"
+    for="pdfFile_<%=assignment[0]%>">
+
+    PDF File
+
+</label>
+
+
+<div class="pdf-upload">
+
+    <input
+        id="pdfFile_<%=assignment[0]%>"
+        type="file"
+        name="pdfFile"
+        accept=".pdf,application/pdf"
+        required
+        onchange="showSelectedFile('<%=assignment[0]%>');">
+
+    <label
+        class="choose-file-button"
+        for="pdfFile_<%=assignment[0]%>"
+        style="display:inline-flex !important; width:fit-content !important; max-width:max-content !important; min-width:0 !important; box-sizing:border-box; align-items:center; justify-content:center; padding:10px 18px !important; margin:7px 0 8px 0 !important; background:#204a87 !important; color:#ffffff !important; border:none !important; border-radius:7px !important; cursor:pointer !important; font-weight:bold !important; font-size:14px !important; line-height:1.2 !important; white-space:nowrap !important;">
+        Choose PDF File
+    </label>
+
+    <span
+        id="selectedFile_<%=assignment[0]%>"
+        class="selected-file-name">
+        No file selected
+    </span>
+
+    <span class="pdf-upload-hint">
+        PDF only • Maximum size: 10 MB
+    </span>
+
+</div>
+
+
+<button
+    type="submit"
+    onclick="return validatePdf('<%=assignment[0]%>');">
+
+    Submit Assignment
+
+</button>
+
+</form>
+
+<% } %>
+
+
+<%
+/* =====================================================
+   GET SUBMISSION ID + PDF FILE NAME
+   ===================================================== */
+
+Object submissionIdObj = null;
+Object pdfFileNameObj = null;
+
+if (assignment.length > 6) {
+    submissionIdObj = assignment[6];
+}
+
+if (assignment.length > 7) {
+    pdfFileNameObj = assignment[7];
+}
+
+Integer submissionId = null;
+
+String pdfFileName = null;
+
+
+if (submissionIdObj != null) {
+
+    try {
+
+        submissionId =
+                Integer.valueOf(
+                    submissionIdObj.toString()
+                );
+
+    } catch (NumberFormatException ignored) {
+    }
+
+}
+
+
+if (pdfFileNameObj != null) {
+
+    pdfFileName =
+            pdfFileNameObj.toString();
+
+}
+
+%>
+
+
+<!-- =====================================================
+     SHOW SUBMITTED PDF
+     ===================================================== -->
+
+<% if (submissionId != null &&
+       pdfFileName != null &&
+       !pdfFileName.isBlank()) { %>
+
+<div class="pdf-submission">
+
+<strong>Submitted PDF:</strong>
+
+<span>
+    <%=safe(pdfFileName)%>
+</span>
+
+
+<div class="pdf-actions">
+
+<!-- VIEW PDF -->
+
+<a
+    href="<%=request.getContextPath()%>/pdf-download?submissionId=<%=submissionId%>"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="button">
+
+    View PDF
+
+</a>
+
+
+<!-- DOWNLOAD PDF -->
+
+<a
+    href="<%=request.getContextPath()%>/pdf-download?submissionId=<%=submissionId%>"
+    class="button">
+
+    Download PDF
+
+</a>
+
+</div>
+
+</div>
+
+<% } %>
+
+<% } %>
+
+</div>
+
+<%
+}
+}
+%>
+
+</div>
+
+
+<!-- =========================================================
+     STUDENT HELP / ASK QUESTION
+     ========================================================= -->
+
+<% if ("STUDENT".equals(role)) { %>
+
+<div class="card help-card">
+
+    <h2>Student Help</h2>
+
+    <p>
+        Have a question about this classroom, assignment, or lesson?
+        Ask your teacher here.
+    </p>
+
+    <form
+        action="<%=request.getContextPath()%>/action"
+        method="post">
+
+        <input
+            type="hidden"
+            name="action"
+            value="askQuestion">
+
+        <input
+            type="hidden"
+            name="classroomId"
+            value="<%=classroomId%>">
+
+        <label for="studentQuestion">
+            Your Question
+        </label>
+
+        <textarea
+            id="studentQuestion"
+            name="question"
+            maxlength="5000"
+            placeholder="Type your question here..."
+            required></textarea>
+
+        <button
+            type="submit"
+            style="margin-top: 12px;">
+
+            Ask Question
+
+        </button>
+
+    </form>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     TEACHER STUDENT QUESTIONS / HELP
+     ========================================================= -->
+
+<% if ("TEACHER".equals(role)) { %>
+
+<div class="card">
+
+    <h2>Student Questions / Help</h2>
+
+    <p class="small">
+        Students can ask questions about this classroom, lessons,
+        or assignments. You can answer them here.
+    </p>
+
+    <%
+    if (studentQuestions == null ||
+        studentQuestions.isEmpty()) {
+    %>
+
+    <p class="empty">
+        No student questions have been asked yet.
+    </p>
+
+    <%
+    } else {
+        for (String[] question : studentQuestions) {
+    %>
+
+    <div class="question-card">
+
+        <h3>
+            <%= question.length > 2
+                    ? safe(question[2])
+                    : "Student" %>
+        </h3>
+
+        <div class="small">
+            Asked:
+            <%= question.length > 5
+                    ? safe(question[5])
+                    : "" %>
+        </div>
+
+        <div class="question-text">
+            <strong>Question:</strong><br>
+            <%= question.length > 3
+                    ? safe(question[3])
+                    : "" %>
+        </div>
+
+        <%
+        boolean hasAnswer =
+                question.length > 4 &&
+                question[4] != null &&
+                !question[4].isBlank();
+        %>
+
+        <% if (hasAnswer) { %>
+
+        <div class="answer-box">
+
+            <div class="answered">
+                Answered
+            </div>
+
+            <p style="white-space:pre-wrap; word-break:break-word;">
+                <%=safe(question[4])%>
+            </p>
+
+            <% if (question.length > 6 &&
+                   question[6] != null &&
+                   !question[6].isBlank()) { %>
+
+            <div class="small">
+                Answered:
+                <%=safe(question[6])%>
+            </div>
+
+            <% } %>
+
+        </div>
+
+        <% } else { %>
+
+        <div class="answer-box">
+
+            <div class="unanswered">
+                Awaiting your answer
+            </div>
+
+            <form
+                action="<%=request.getContextPath()%>/action"
+                method="post"
+                style="margin-top:12px;">
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="answerQuestion">
+
+                <input
+                    type="hidden"
+                    name="questionId"
+                    value="<%=question[0]%>">
+
+                <label
+                    for="answer_<%=question[0]%>">
+                    Your Answer
+                </label>
+
+                <textarea
+                    id="answer_<%=question[0]%>"
+                    name="answer"
+                    maxlength="5000"
+                    placeholder="Type your answer here..."
+                    required></textarea>
+
+                <button type="submit">
+                    Answer Question
+                </button>
+
+            </form>
+
+        </div>
+
+        <% } %>
+
+    </div>
+
+    <%
+        }
+    }
+    %>
+
+</div>
+
+<% } %>
+
+
+<!-- =========================================================
+     TEACHER SUBMISSION STATUS
+     ========================================================= -->
+
+<% if ("TEACHER".equals(role)) { %>
+
+<div class="card">
+
+<h2>Student Submission Status</h2>
+
+<%
+if (submissionStatus == null ||
+    submissionStatus.isEmpty()) {
+%>
+
+<p class="empty">
+    No student submission data available
+    for this classroom yet.
+</p>
+
+<%
+} else {
+%>
+
+<div style="overflow-x:auto;">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Assignment</th>
+
+<th>Student</th>
+
+<th>Submitted</th>
+
+<th>Marks</th>
+
+<th>PDF</th>
+
+<th>Marks & Feedback</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<%
+
+for (String[] status : submissionStatus) {
+
+%>
+
+<tr>
+
+<td>
+
+<%=status.length > 1
+        ? safe(status[1])
+        : ""%>
+
+</td>
+
+
+<td>
+
+<%=status.length > 3
+        ? safe(status[3])
+        : ""%>
+
+</td>
+
+
+<td>
+
+<%
+
+if (status.length <= 4 ||
+    status[4] == null ||
+    status[4].isBlank()) {
+
+%>
+
+Not Submitted
+
+<%
+
+} else if (status.length > 5) {
+
+%>
+
+<%=safe(status[5])%>
+
+<%
+
+}
+
+%>
+
+</td>
+
+
+<td>
+
+<%
+
+if (status.length > 6 &&
+    status[6] != null &&
+    !status[6].isBlank()) {
+
+%>
+
+<%=safe(status[6])%>
+
+<%
+
+} else {
+
+%>
+
+Not graded
+
+<%
+
+}
+
+%>
+
+</td>
+
+<td>
+
+<%
+
+if (status.length > 7 &&
+    status[7] != null &&
+    !status[7].isBlank() &&
+    status.length > 4 &&
+    status[4] != null &&
+    !status[4].isBlank()) {
+
+%>
+
+<a
+    class="pdf-view-button"
+    href="<%=request.getContextPath()%>/pdf-download?submissionId=<%=status[4]%>"
+    target="_blank"
+    rel="noopener">
+    View PDF
+</a>
+
+<div class="small pdf-file-name">
+    <%=safe(status[7])%>
+</div>
+
+<%
+
+} else {
+
+%>
+
+<span class="small">No PDF</span>
+
+<%
+
+}
+
+%>
+
+</td>
+
+<td>
+
+<%
+boolean hasSubmission =
+        status.length > 4 &&
+        status[4] != null &&
+        !status[4].isBlank();
+%>
+
+<% if (hasSubmission) { %>
+
+<div class="grade-box">
+
+    <%
+    if (status.length > 6 &&
+        status[6] != null &&
+        !status[6].isBlank()) {
+    %>
+
+    <div class="grade-current">
+        Current Marks:
+        <%=safe(status[6])%>/100
+    </div>
+
+    <% } else { %>
+
+    <div class="grade-current">
+        Not graded yet
+    </div>
+
+    <% } %>
+
+    <form
+        action="<%=request.getContextPath()%>/action"
+        method="post">
+
+        <input
+            type="hidden"
+            name="action"
+            value="gradeSubmission">
+
+        <input
+            type="hidden"
+            name="classroomId"
+            value="<%=classroomId%>">
+
+        <input
+            type="hidden"
+            name="assignmentId"
+            value="<%=status[0]%>">
+
+        <input
+            type="hidden"
+            name="studentId"
+            value="<%=status[2]%>">
+
+        <label
+            class="grade-label"
+            for="marks_<%=status[4]%>">
+            Marks (0-100)
+        </label>
+
+        <input
+            id="marks_<%=status[4]%>"
+            type="number"
+            name="marks"
+            min="0"
+            max="100"
+            step="1"
+            value="<%=status.length > 6 &&
+                      status[6] != null &&
+                      !status[6].isBlank()
+                      ? safe(status[6])
+                      : ""%>"
+            required>
+
+        <label
+            class="grade-label"
+            for="feedback_<%=status[4]%>">
+            Feedback
+        </label>
+
+        <textarea
+            id="feedback_<%=status[4]%>"
+            name="feedback"
+            maxlength="5000"
+            placeholder="Write feedback for the student..."></textarea>
+
+        <button
+            type="submit"
+            class="save-grade-button">
+            Save Marks & Feedback
+        </button>
+
+    </form>
+
+</div>
+
+<% } else { %>
+
+<span class="small">
+    Student has not submitted yet.
+</span>
+
+<% } %>
+
+</td>
+
+</tr>
+
+<%
+
+}
+
+%>
+
+</tbody>
+
+</table>
+
+</div>
+
+<%
+
+}
+
+%>
+
+</div>
+
+<% } %>
+
+
+</div>
+
+
+<!-- =========================================================
+     PDF VALIDATION
+     ========================================================= -->
+
+<script>
+
+function showSelectedFile(assignmentId) {
+
+    const fileInput =
+        document.getElementById(
+            "pdfFile_" + assignmentId
+        );
+
+    const fileName =
+        document.getElementById(
+            "selectedFile_" + assignmentId
+        );
+
+    if (!fileInput || !fileName) {
+        return;
+    }
+
+    if (fileInput.files &&
+        fileInput.files.length > 0) {
+
+        fileName.textContent =
+            fileInput.files[0].name;
+
+    } else {
+
+        fileName.textContent =
+            "No file selected";
+    }
+}
+
+
+function validatePdf(assignmentId) {
+
+    const fileInput =
+        document.getElementById(
+            "pdfFile_" + assignmentId
+        );
+
+    if (!fileInput ||
+        !fileInput.files ||
+        fileInput.files.length === 0) {
+
+        alert("Please select a PDF file.");
+
+        return false;
+    }
+
+
+    const file =
+        fileInput.files[0];
+
+
+    const fileName =
+        file.name.toLowerCase();
+
+
+    const maxSize =
+        10 * 1024 * 1024;
+
+
+    if (!fileName.endsWith(".pdf")) {
+
+        alert("Only PDF files are allowed.");
+
+        fileInput.value = "";
+
+        return false;
+    }
+
+
+    if (file.size > maxSize) {
+
+        alert(
+            "PDF file size must not exceed 10 MB."
+        );
+
+        fileInput.value = "";
+
+        return false;
+    }
+
+
+    return true;
+}
+
+</script>
+
 
 </body>
 

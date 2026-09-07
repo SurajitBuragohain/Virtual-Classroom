@@ -19,9 +19,12 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet("/classroom")
 public class ClassroomServlet extends HttpServlet {
 
-    private static final long serialVersionUID = 1L;
+    // =========================================================
+    // ONLINE CLASS MODEL
+    // =========================================================
 
     public static class OnlineClass {
+
         public int id;
         public String topic;
         public String date;
@@ -31,11 +34,20 @@ public class ClassroomServlet extends HttpServlet {
         public String teacherName;
     }
 
+
+    // =========================================================
+    // DO GET
+    // =========================================================
+
     @Override
     protected void doGet(
             HttpServletRequest req,
             HttpServletResponse resp)
             throws ServletException, IOException {
+
+        // -----------------------------------------------------
+        // 1. CHECK LOGIN
+        // -----------------------------------------------------
 
         HttpSession session =
                 req.getSession(false);
@@ -43,13 +55,14 @@ public class ClassroomServlet extends HttpServlet {
         if (session == null ||
             session.getAttribute("userId") == null) {
 
-            resp.sendRedirect(
-                    req.getContextPath() +
-                    "/index.jsp"
-            );
-
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
+
+
+        // -----------------------------------------------------
+        // 2. GET LOGGED-IN USER
+        // -----------------------------------------------------
 
         int userId =
                 (Integer) session.getAttribute("userId");
@@ -57,11 +70,16 @@ public class ClassroomServlet extends HttpServlet {
         String role =
                 (String) session.getAttribute("role");
 
+
+        // -----------------------------------------------------
+        // 3. GET CLASSROOM ID
+        // -----------------------------------------------------
+
         String idParameter =
                 req.getParameter("id");
 
         if (idParameter == null ||
-            idParameter.isBlank()) {
+            idParameter.trim().isEmpty()) {
 
             resp.sendError(
                     HttpServletResponse.SC_BAD_REQUEST,
@@ -71,14 +89,13 @@ public class ClassroomServlet extends HttpServlet {
             return;
         }
 
+
         int classroomId;
 
         try {
 
             classroomId =
-                    Integer.parseInt(
-                            idParameter.trim()
-                    );
+                    Integer.parseInt(idParameter);
 
         } catch (NumberFormatException e) {
 
@@ -90,16 +107,28 @@ public class ClassroomServlet extends HttpServlet {
             return;
         }
 
-        try (Connection con =
-                     DB.getConnection()) {
+
+        // -----------------------------------------------------
+        // 4. DATABASE CONNECTION
+        // -----------------------------------------------------
+
+        try (Connection con = DB.getConnection()) {
+
+
+            // =================================================
+            // 5. CHECK USER ACCESS
+            // =================================================
 
             if ("STUDENT".equals(role)) {
 
-                if (!checkStudentAccess(
-                        con,
-                        userId,
-                        classroomId
-                )) {
+                boolean allowed =
+                        checkStudentAccess(
+                                con,
+                                userId,
+                                classroomId
+                        );
+
+                if (!allowed) {
 
                     resp.sendError(
                             HttpServletResponse.SC_FORBIDDEN,
@@ -109,13 +138,17 @@ public class ClassroomServlet extends HttpServlet {
                     return;
                 }
 
+
             } else if ("TEACHER".equals(role)) {
 
-                if (!checkTeacherAccess(
-                        con,
-                        userId,
-                        classroomId
-                )) {
+                boolean allowed =
+                        checkTeacherAccess(
+                                con,
+                                userId,
+                                classroomId
+                        );
+
+                if (!allowed) {
 
                     resp.sendError(
                             HttpServletResponse.SC_FORBIDDEN,
@@ -124,6 +157,7 @@ public class ClassroomServlet extends HttpServlet {
 
                     return;
                 }
+
 
             } else {
 
@@ -135,11 +169,17 @@ public class ClassroomServlet extends HttpServlet {
                 return;
             }
 
+
+            // =================================================
+            // 6. GET CLASSROOM
+            // =================================================
+
             String[] classroom =
                     getClassroom(
                             con,
                             classroomId
                     );
+
 
             if (classroom == null) {
 
@@ -151,14 +191,29 @@ public class ClassroomServlet extends HttpServlet {
                 return;
             }
 
+
+            // =================================================
+            // 7. GET CLASSROOM TEACHERS
+            // =================================================
+
             List<String[]> teachers =
                     getTeachers(
                             con,
                             classroomId
                     );
 
+
+            // =================================================
+            // 8. GET ALL TEACHERS
+            // =================================================
+
             List<String[]> allTeachers =
                     getAllTeachers(con);
+
+
+            // =================================================
+            // 9. GET STUDENTS
+            // =================================================
 
             List<String[]> students =
                     getStudents(
@@ -166,16 +221,23 @@ public class ClassroomServlet extends HttpServlet {
                             classroomId
                     );
 
+
+            // =================================================
+            // 10. GET ASSIGNMENTS
+            // =================================================
+
             List<String[]> assignments =
                     getAssignments(
                             con,
                             classroomId
                     );
 
-            List<String[]> submissionStatus =
-                    new ArrayList<>();
 
-            List<String[]> studentSubmissions =
+            // =================================================
+            // 11. GET SUBMISSION STATUS
+            // =================================================
+
+            List<String[]> submissionStatus =
                     new ArrayList<>();
 
             if ("TEACHER".equals(role)) {
@@ -185,22 +247,34 @@ public class ClassroomServlet extends HttpServlet {
                                 con,
                                 classroomId
                         );
-
-            } else if ("STUDENT".equals(role)) {
-
-                studentSubmissions =
-                        getStudentSubmissionStatus(
-                                con,
-                                classroomId,
-                                userId
-                        );
             }
+
+
+            // =================================================
+            // 12. GET STUDENT QUESTIONS
+            // =================================================
+
+            List<String[]> studentQuestions =
+                    getStudentQuestions(
+                            con,
+                            classroomId
+                    );
+
+
+            // =================================================
+            // 13. GET ONLINE CLASSES
+            // =================================================
 
             List<OnlineClass> onlineClasses =
                     getOnlineClasses(
                             con,
                             classroomId
                     );
+
+
+            // =================================================
+            // 13. SEND DATA TO JSP
+            // =================================================
 
             req.setAttribute(
                     "cid",
@@ -238,18 +312,23 @@ public class ClassroomServlet extends HttpServlet {
             );
 
             req.setAttribute(
-                    "studentSubmissions",
-                    studentSubmissions
+                    "studentQuestions",
+                    studentQuestions
             );
+
 
             req.setAttribute(
                     "onlineClasses",
                     onlineClasses
             );
 
-            req.getRequestDispatcher(
-                    "/classroom.jsp"
-            ).forward(req, resp);
+
+            // =================================================
+            // 15. FORWARD TO CLASSROOM JSP
+            // =================================================
+
+            req.getRequestDispatcher("/classroom.jsp").forward(req, resp);
+
 
         } catch (Exception e) {
 
@@ -259,6 +338,11 @@ public class ClassroomServlet extends HttpServlet {
             );
         }
     }
+
+
+    // =========================================================
+    // CHECK STUDENT ACCESS
+    // =========================================================
 
     private boolean checkStudentAccess(
             Connection con,
@@ -271,6 +355,7 @@ public class ClassroomServlet extends HttpServlet {
                 "FROM enrollments " +
                 "WHERE student_id=? " +
                 "AND classroom_id=?";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -286,6 +371,11 @@ public class ClassroomServlet extends HttpServlet {
         }
     }
 
+
+    // =========================================================
+    // CHECK TEACHER ACCESS
+    // =========================================================
+
     private boolean checkTeacherAccess(
             Connection con,
             int teacherId,
@@ -297,6 +387,7 @@ public class ClassroomServlet extends HttpServlet {
                 "FROM teacher_classroom " +
                 "WHERE teacher_id=? " +
                 "AND classroom_id=?";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -312,6 +403,11 @@ public class ClassroomServlet extends HttpServlet {
         }
     }
 
+
+    // =========================================================
+    // GET CLASSROOM
+    // =========================================================
+
     private String[] getClassroom(
             Connection con,
             int classroomId)
@@ -322,6 +418,7 @@ public class ClassroomServlet extends HttpServlet {
                 "class_name, subject, description " +
                 "FROM classrooms " +
                 "WHERE classroom_id=?";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -346,6 +443,11 @@ public class ClassroomServlet extends HttpServlet {
         return null;
     }
 
+
+    // =========================================================
+    // GET CLASSROOM TEACHERS
+    // =========================================================
+
     private List<String[]> getTeachers(
             Connection con,
             int classroomId)
@@ -353,6 +455,7 @@ public class ClassroomServlet extends HttpServlet {
 
         List<String[]> teachers =
                 new ArrayList<>();
+
 
         String sql =
                 "SELECT u.user_id, " +
@@ -363,6 +466,7 @@ public class ClassroomServlet extends HttpServlet {
                 "WHERE tc.classroom_id=? " +
                 "AND u.role='TEACHER' " +
                 "ORDER BY u.name";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -388,6 +492,11 @@ public class ClassroomServlet extends HttpServlet {
         return teachers;
     }
 
+
+    // =========================================================
+    // GET ALL TEACHERS
+    // =========================================================
+
     private List<String[]> getAllTeachers(
             Connection con)
             throws Exception {
@@ -395,19 +504,18 @@ public class ClassroomServlet extends HttpServlet {
         List<String[]> allTeachers =
                 new ArrayList<>();
 
+
         String sql =
                 "SELECT user_id, name " +
                 "FROM users " +
                 "WHERE role='TEACHER' " +
                 "ORDER BY name";
 
-        try (
-                PreparedStatement ps =
-                        con.prepareStatement(sql);
 
-                ResultSet rs =
-                        ps.executeQuery()
-        ) {
+        try (PreparedStatement ps =
+                     con.prepareStatement(sql);
+             ResultSet rs =
+                     ps.executeQuery()) {
 
             while (rs.next()) {
 
@@ -423,6 +531,11 @@ public class ClassroomServlet extends HttpServlet {
         return allTeachers;
     }
 
+
+    // =========================================================
+    // GET STUDENTS
+    // =========================================================
+
     private List<String[]> getStudents(
             Connection con,
             int classroomId)
@@ -430,6 +543,7 @@ public class ClassroomServlet extends HttpServlet {
 
         List<String[]> students =
                 new ArrayList<>();
+
 
         String sql =
                 "SELECT u.user_id, " +
@@ -440,6 +554,7 @@ public class ClassroomServlet extends HttpServlet {
                 "WHERE e.classroom_id=? " +
                 "AND u.role='STUDENT' " +
                 "ORDER BY u.name";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -465,6 +580,11 @@ public class ClassroomServlet extends HttpServlet {
         return students;
     }
 
+
+    // =========================================================
+    // GET ASSIGNMENTS
+    // =========================================================
+
     private List<String[]> getAssignments(
             Connection con,
             int classroomId)
@@ -473,12 +593,14 @@ public class ClassroomServlet extends HttpServlet {
         List<String[]> assignments =
                 new ArrayList<>();
 
+
         String sql =
                 "SELECT assignment_id, " +
                 "title, description, due_date " +
                 "FROM assignments " +
                 "WHERE classroom_id=? " +
                 "ORDER BY due_date";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -505,6 +627,11 @@ public class ClassroomServlet extends HttpServlet {
         return assignments;
     }
 
+
+    // =========================================================
+    // GET SUBMISSION STATUS
+    // =========================================================
+
     private List<String[]> getSubmissionStatus(
             Connection con,
             int classroomId)
@@ -513,27 +640,34 @@ public class ClassroomServlet extends HttpServlet {
         List<String[]> submissionStatus =
                 new ArrayList<>();
 
+
         String sql =
                 "SELECT " +
                 "a.assignment_id, " +
                 "a.title, " +
-                "u.name AS student_name, " +
+                "u.user_id, " +
+                "u.name, " +
+                "s.submission_id, " +
                 "s.submitted_at, " +
-                "s.answer, " +
                 "s.marks, " +
-                "s.feedback, " +
-                "u.user_id AS student_id " +
+                "s.pdf_file_name " +
+
                 "FROM assignments a " +
+
                 "JOIN enrollments e " +
                 "ON a.classroom_id=e.classroom_id " +
+
                 "JOIN users u " +
                 "ON e.student_id=u.user_id " +
+
                 "LEFT JOIN submissions s " +
                 "ON s.assignment_id=a.assignment_id " +
                 "AND s.student_id=u.user_id " +
+
                 "WHERE a.classroom_id=? " +
-                "AND u.role='STUDENT' " +
+
                 "ORDER BY a.assignment_id, u.name";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -545,60 +679,16 @@ public class ClassroomServlet extends HttpServlet {
 
                 while (rs.next()) {
 
-                    String submittedAt = "";
-
-                    if (rs.getTimestamp(
-                            "submitted_at"
-                    ) != null) {
-
-                        submittedAt =
-                                rs.getTimestamp(
-                                        "submitted_at"
-                                ).toString();
-                    }
-
-                    String answer =
-                            rs.getString("answer");
-
-                    if (answer == null) {
-                        answer = "";
-                    }
-
-                    String marks = "";
-
-                    if (rs.getObject("marks") != null) {
-
-                        marks =
-                                String.valueOf(
-                                        rs.getInt("marks")
-                                );
-                    }
-
-                    String feedback =
-                            rs.getString("feedback");
-
-                    if (feedback == null) {
-                        feedback = "";
-                    }
-
                     submissionStatus.add(
                             new String[]{
-                                    rs.getString(
-                                            "assignment_id"
-                                    ),
-                                    rs.getString(
-                                            "title"
-                                    ),
-                                    rs.getString(
-                                            "student_name"
-                                    ),
-                                    submittedAt,
-                                    answer,
-                                    marks,
-                                    feedback,
-                                    rs.getString(
-                                            "student_id"
-                                    )
+                                    rs.getString("assignment_id"),
+                                    rs.getString("title"),
+                                    rs.getString("user_id"),
+                                    rs.getString("name"),
+                                    rs.getString("submission_id"),
+                                    rs.getString("submitted_at"),
+                                    rs.getString("marks"),
+                                    rs.getString("pdf_file_name")
                             }
                     );
                 }
@@ -608,85 +698,66 @@ public class ClassroomServlet extends HttpServlet {
         return submissionStatus;
     }
 
-    private List<String[]> getStudentSubmissionStatus(
+
+    // =========================================================
+    // GET STUDENT QUESTIONS
+    // =========================================================
+
+    private List<String[]> getStudentQuestions(
             Connection con,
-            int classroomId,
-            int studentId)
+            int classroomId)
             throws Exception {
 
-        List<String[]> submissions =
+        List<String[]> questions =
                 new ArrayList<>();
 
         String sql =
                 "SELECT " +
-                "a.assignment_id, " +
-                "s.answer, " +
-                "s.submitted_at, " +
-                "s.marks, " +
-                "s.feedback " +
-                "FROM assignments a " +
-                "LEFT JOIN submissions s " +
-                "ON s.assignment_id=a.assignment_id " +
-                "AND s.student_id=? " +
-                "WHERE a.classroom_id=? " +
-                "ORDER BY a.due_date, a.assignment_id";
+                "sq.question_id, " +
+                "sq.student_id, " +
+                "u.name AS student_name, " +
+                "sq.question, " +
+                "sq.answer, " +
+                "sq.created_at, " +
+                "sq.answered_at " +
+                "FROM student_questions sq " +
+                "JOIN users u " +
+                "ON sq.student_id=u.user_id " +
+                "WHERE sq.classroom_id=? " +
+                "ORDER BY sq.created_at DESC";
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
 
-            ps.setInt(1, studentId);
-            ps.setInt(2, classroomId);
+            ps.setInt(1, classroomId);
 
             try (ResultSet rs =
                          ps.executeQuery()) {
 
                 while (rs.next()) {
 
-                    String submittedAt = "";
-
-                    if (rs.getTimestamp("submitted_at") != null) {
-                        submittedAt =
-                                rs.getTimestamp("submitted_at").toString();
-                    }
-
-                    String answer =
-                            rs.getString("answer");
-
-                    if (answer == null) {
-                        answer = "";
-                    }
-
-                    String marks = "";
-
-                    if (rs.getObject("marks") != null) {
-                        marks =
-                                String.valueOf(
-                                        rs.getInt("marks")
-                                );
-                    }
-
-                    String feedback =
-                            rs.getString("feedback");
-
-                    if (feedback == null) {
-                        feedback = "";
-                    }
-
-                    submissions.add(
+                    questions.add(
                             new String[]{
-                                    rs.getString("assignment_id"),
-                                    answer,
-                                    submittedAt,
-                                    marks,
-                                    feedback
+                                    rs.getString("question_id"),
+                                    rs.getString("student_id"),
+                                    rs.getString("student_name"),
+                                    rs.getString("question"),
+                                    rs.getString("answer"),
+                                    rs.getString("created_at"),
+                                    rs.getString("answered_at")
                             }
                     );
                 }
             }
         }
 
-        return submissions;
+        return questions;
     }
+
+
+    // =========================================================
+    // GET ONLINE CLASSES
+    // =========================================================
 
     private List<OnlineClass> getOnlineClasses(
             Connection con,
@@ -695,6 +766,7 @@ public class ClassroomServlet extends HttpServlet {
 
         List<OnlineClass> onlineClasses =
                 new ArrayList<>();
+
 
         String sql =
                 "SELECT " +
@@ -705,11 +777,17 @@ public class ClassroomServlet extends HttpServlet {
                 "oc.end_time, " +
                 "oc.meeting_link, " +
                 "u.name AS teacher_name " +
+
                 "FROM online_classes oc " +
+
                 "JOIN users u " +
                 "ON oc.teacher_id=u.user_id " +
+
                 "WHERE oc.classroom_id=? " +
-                "ORDER BY oc.class_date, oc.start_time";
+
+                "ORDER BY oc.class_date, " +
+                "oc.start_time";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql)) {
@@ -724,15 +802,18 @@ public class ClassroomServlet extends HttpServlet {
                     OnlineClass onlineClass =
                             new OnlineClass();
 
+
                     onlineClass.id =
                             rs.getInt(
                                     "online_class_id"
                             );
 
+
                     onlineClass.topic =
                             rs.getString(
                                     "topic"
                             );
+
 
                     if (rs.getDate("class_date") != null) {
 
@@ -746,6 +827,7 @@ public class ClassroomServlet extends HttpServlet {
                         onlineClass.date = "";
                     }
 
+
                     if (rs.getTime("start_time") != null) {
 
                         onlineClass.startTime =
@@ -757,6 +839,7 @@ public class ClassroomServlet extends HttpServlet {
 
                         onlineClass.startTime = "";
                     }
+
 
                     if (rs.getTime("end_time") != null) {
 
@@ -770,15 +853,18 @@ public class ClassroomServlet extends HttpServlet {
                         onlineClass.endTime = "";
                     }
 
+
                     onlineClass.meetingLink =
                             rs.getString(
                                     "meeting_link"
                             );
 
+
                     onlineClass.teacherName =
                             rs.getString(
                                     "teacher_name"
                             );
+
 
                     onlineClasses.add(
                             onlineClass
