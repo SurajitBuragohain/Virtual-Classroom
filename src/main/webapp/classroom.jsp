@@ -446,6 +446,38 @@ th {
 }
 
 </style>
+<style>
+/* Student assignment results */
+.student-results-card {
+    margin-top: 25px;
+}
+
+.student-results-table th,
+.student-results-table td {
+    vertical-align: top;
+}
+
+.student-results-table .feedback-box {
+    margin-top: 0;
+    max-width: 420px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.pdf-file-name {
+    margin-top: 7px;
+    font-size: 13px;
+    color: #555;
+    overflow-wrap: anywhere;
+}
+
+.student-results-table .button {
+    display: inline-block;
+    text-decoration: none;
+    white-space: nowrap;
+}
+</style>
+
 
 </head>
 
@@ -486,6 +518,10 @@ List<String[]> assignments =
 List<String[]> submissionStatus =
         (List<String[]>)
         request.getAttribute("submissionStatus");
+
+List<String[]> studentSubmissionStatus =
+        (List<String[]>)
+        request.getAttribute("studentSubmissionStatus");
 
 List<?> onlineClasses =
         (List<?>)
@@ -1256,8 +1292,7 @@ Select your assignment as a PDF file.
 
     <label
         class="choose-file-button"
-        for="pdfFile_<%=assignment[0]%>"
-        style="display:inline-flex !important; width:fit-content !important; max-width:max-content !important; min-width:0 !important; box-sizing:border-box; align-items:center; justify-content:center; padding:10px 18px !important; margin:7px 0 8px 0 !important; background:#204a87 !important; color:#ffffff !important; border:none !important; border-radius:7px !important; cursor:pointer !important; font-weight:bold !important; font-size:14px !important; line-height:1.2 !important; white-space:nowrap !important;">
+        for="pdfFile_<%=assignment[0]%>">
         Choose PDF File
     </label>
 
@@ -1591,6 +1626,164 @@ if (pdfFileNameObj != null) {
 <!-- =========================================================
      TEACHER SUBMISSION STATUS
      ========================================================= -->
+
+<% if ("STUDENT".equals(role)) { %>
+
+<div class="card student-results-card">
+
+<h2>My Assignment Results</h2>
+
+<%
+if (studentSubmissionStatus == null ||
+    studentSubmissionStatus.isEmpty()) {
+%>
+
+<p class="empty">
+    No assignment submission data available yet.
+</p>
+
+<%
+} else {
+%>
+
+<div style="overflow-x:auto;">
+<table class="student-results-table">
+
+<thead>
+<tr>
+    <th>Assignment</th>
+    <th>Submitted</th>
+    <th>Marks</th>
+    <th>Feedback</th>
+    <th>PDF</th>
+</tr>
+</thead>
+
+<tbody>
+
+<%
+for (String[] result : studentSubmissionStatus) {
+    String assignmentTitle =
+            result.length > 1 && result[1] != null
+                    ? result[1]
+                    : "";
+
+    String submissionId =
+            result.length > 2 && result[2] != null
+                    ? result[2]
+                    : "";
+
+    String submittedAt =
+            result.length > 3 && result[3] != null
+                    ? result[3]
+                    : "";
+
+    String marks =
+            result.length > 4 && result[4] != null
+                    ? result[4]
+                    : "";
+
+    String feedback =
+            result.length > 5 && result[5] != null
+                    ? result[5]
+                    : "";
+
+    String pdfFileName =
+            result.length > 6 && result[6] != null
+                    ? result[6]
+                    : "";
+%>
+
+<tr>
+
+<td>
+    <strong><%= safe(assignmentTitle) %></strong>
+</td>
+
+<td>
+<%
+if (submittedAt.isBlank()) {
+%>
+    <span class="not-submitted">Not Submitted</span>
+<%
+} else {
+%>
+    <span class="submitted"><%= safe(submittedAt) %></span>
+<%
+}
+%>
+</td>
+
+<td>
+<%
+if (marks.isBlank()) {
+%>
+    <span class="not-graded">Not graded</span>
+<%
+} else {
+%>
+    <strong><%= safe(marks) %> / 100</strong>
+<%
+}
+%>
+</td>
+
+<td>
+<%
+if (feedback.isBlank()) {
+%>
+    <span class="empty">No feedback yet</span>
+<%
+} else {
+%>
+    <div class="feedback-box">
+        <%= safe(feedback) %>
+    </div>
+<%
+}
+%>
+</td>
+
+<td>
+<%
+if (!submissionId.isBlank() && !pdfFileName.isBlank()) {
+%>
+    <a
+        class="button"
+        href="<%=request.getContextPath()%>/pdf-download?submissionId=<%=safe(submissionId)%>"
+        target="_blank">
+        View PDF
+    </a>
+    <div class="pdf-file-name">
+        <%= safe(pdfFileName) %>
+    </div>
+<%
+} else {
+%>
+    <span class="empty">No PDF</span>
+<%
+}
+%>
+</td>
+
+</tr>
+
+<%
+}
+%>
+
+</tbody>
+</table>
+</div>
+
+<%
+}
+%>
+
+</div>
+
+<% } %>
+
 
 <% if ("TEACHER".equals(role)) { %>
 

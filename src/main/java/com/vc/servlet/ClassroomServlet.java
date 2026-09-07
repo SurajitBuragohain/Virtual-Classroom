@@ -249,6 +249,21 @@ public class ClassroomServlet extends HttpServlet {
                         );
             }
 
+            // Student sees only their own submission,
+            // marks, feedback, and submitted PDF.
+            List<String[]> studentSubmissionStatus =
+                    new ArrayList<>();
+
+            if ("STUDENT".equals(role)) {
+
+                studentSubmissionStatus =
+                        getStudentSubmissionStatus(
+                                con,
+                                classroomId,
+                                userId
+                        );
+            }
+
 
             // =================================================
             // 12. GET STUDENT QUESTIONS
@@ -309,6 +324,11 @@ public class ClassroomServlet extends HttpServlet {
             req.setAttribute(
                     "submissionStatus",
                     submissionStatus
+            );
+
+            req.setAttribute(
+                    "studentSubmissionStatus",
+                    studentSubmissionStatus
             );
 
             req.setAttribute(
@@ -696,6 +716,65 @@ public class ClassroomServlet extends HttpServlet {
         }
 
         return submissionStatus;
+    }
+
+
+    // =========================================================
+    // GET LOGGED-IN STUDENT'S SUBMISSION RESULTS
+    // =========================================================
+
+    private List<String[]> getStudentSubmissionStatus(
+            Connection con,
+            int classroomId,
+            int studentId)
+            throws Exception {
+
+        List<String[]> results =
+                new ArrayList<>();
+
+        String sql =
+                "SELECT " +
+                "a.assignment_id, " +
+                "a.title, " +
+                "s.submission_id, " +
+                "s.submitted_at, " +
+                "s.marks, " +
+                "s.feedback, " +
+                "s.pdf_file_name " +
+                "FROM assignments a " +
+                "LEFT JOIN submissions s " +
+                "ON s.assignment_id=a.assignment_id " +
+                "AND s.student_id=? " +
+                "WHERE a.classroom_id=? " +
+                "ORDER BY a.due_date, a.assignment_id";
+
+        try (PreparedStatement ps =
+                     con.prepareStatement(sql)) {
+
+            ps.setInt(1, studentId);
+            ps.setInt(2, classroomId);
+
+            try (ResultSet rs =
+                         ps.executeQuery()) {
+
+                while (rs.next()) {
+
+                    results.add(
+                            new String[]{
+                                    rs.getString("assignment_id"),
+                                    rs.getString("title"),
+                                    rs.getString("submission_id"),
+                                    rs.getString("submitted_at"),
+                                    rs.getString("marks"),
+                                    rs.getString("feedback"),
+                                    rs.getString("pdf_file_name")
+                            }
+                    );
+                }
+            }
+        }
+
+        return results;
     }
 
 
